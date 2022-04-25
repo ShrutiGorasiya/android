@@ -32,6 +32,525 @@ new java class=DBHelper.java
 new Activity->emptyActivity->ModifyActivity
 new->XML->LayoutXmlfile
 new Activity->emptyActivity->ShowActivity
+
+
+===================================================== Start CRUD(UI--Kruti)=======================================================
+----------------
+Dbo.java
+---------------
+package com.example.productapp;
+
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+
+import androidx.annotation.Nullable;
+
+public class Dbo extends SQLiteOpenHelper {
+
+    public Dbo(@Nullable Context context, @Nullable String name, @Nullable SQLiteDatabase.CursorFactory factory, int version) {
+        super(context, "ProductDb", factory, 1);
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase sqLiteDatabase) {
+
+        sqLiteDatabase.execSQL("create table product(pid integer primary key autoincrement,pname text,price int,category text)");
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase sqLiteDatabase, int i, int i1) {
+        sqLiteDatabase.execSQL("drop table if exists product");
+        onCreate(sqLiteDatabase);
+    }
+
+    public void add(String pnm,int price,String cat){
+        SQLiteDatabase db=this.getWritableDatabase();
+        ContentValues cv=new ContentValues();
+        cv.put("pname",pnm);
+        cv.put("price",price);
+        cv.put("category",cat);
+        db.insert("product",null,cv);
+        db.close();
+    }
+
+    public void edit(Integer pid,String pnm,int price,String cat){
+        SQLiteDatabase db=this.getWritableDatabase();
+        ContentValues cv=new ContentValues();
+        cv.put("pname",pnm);
+        cv.put("price",price);
+        cv.put("category",cat);
+        db.update("product",cv,"pid=?",new String[]{Integer.toString(pid)});
+        db.close();
+    }
+
+    public void delete(Integer pid){
+        SQLiteDatabase db=this.getWritableDatabase();
+        db.delete("product","pid=?",new String[]{Integer.toString(pid)});
+        db.close();
+    }
+
+    public Cursor getAll(){
+        SQLiteDatabase db=this.getReadableDatabase();
+        Cursor res=db.rawQuery("select *from product",null);
+        return res;
+    }
+}
+
+
+-------------------
+MainActivity.java
+--------------------
+
+package com.example.productapp;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import android.content.Intent;
+import android.database.Cursor;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.ListView;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import java.util.ArrayList;
+
+public class MainActivity extends AppCompatActivity {
+
+    Dbo obj=new Dbo(this,null,null,1);
+
+    TextView tNm,tPr,tCat;
+    Button bAdd;
+
+    ListView list;
+    ArrayList<String> arrayList;
+    ArrayAdapter<String> adapter;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        tNm=findViewById(R.id.tnm);
+        tPr=findViewById(R.id.tprice);
+        tCat=findViewById(R.id.tcat);
+        bAdd=findViewById(R.id.bAdd);
+        list=findViewById(R.id.list1);
+
+        showData();
+
+        bAdd.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                String msg="";
+                if(!tNm.getText().toString().isEmpty() && !tPr.getText().toString().isEmpty() && !tCat.getText().toString().isEmpty()){
+
+                    obj.add(tNm.getText().toString(),Integer.parseInt(tPr.getText().toString()),tCat.getText().toString());
+
+                    msg="Record Added";
+                    showData();
+
+                    tNm.setText("");
+                    tPr.setText("");
+                    tCat.setText("");
+
+                }else{
+                    msg="Provide details";
+                }
+                Toast.makeText(getApplicationContext(),msg,Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+
+                String info=((TextView) view).getText().toString();
+
+                String[] pro=info.split("   ");
+
+                if(pro.length==4 && !pro[0].equals("ID")){
+                    Intent i1=new Intent(getApplicationContext(),ProductPage.class);
+
+                    i1.putExtra("pid",pro[0]);
+                    i1.putExtra("pnm",pro[1]);
+                    i1.putExtra("pprice",pro[2]);
+                    i1.putExtra("pcat",pro[3]);
+
+                    startActivity(i1);
+
+                }
+
+            }
+        });
+
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        showData();
+    }
+
+    public void showData(){
+
+        arrayList=new ArrayList<String>();
+        adapter=new ArrayAdapter<String>(getApplicationContext(), android.R.layout.simple_spinner_item,arrayList);
+
+        list.setAdapter(adapter);
+
+        arrayList.add("ID   NAME    PRICE   CATEGORY");
+        Cursor res=obj.getAll();
+
+        if(res.moveToFirst()){
+            do{
+                arrayList.add(res.getString(0)+"    "+res.getString(1)+"    "+res.getString(2)+"    "+res.getString(3));
+            }while(res.moveToNext());
+        }
+
+    }
+}
+
+
+----------------------
+activity_main.xml
+---------------------
+
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <TextView
+        android:id="@+id/textView"
+        android:layout_width="219dp"
+        android:layout_height="38dp"
+        android:layout_marginStart="75dp"
+        android:layout_marginTop="16dp"
+        android:text="Products list"
+        android:textSize="20sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <EditText
+        android:id="@+id/tnm"
+        android:layout_width="176dp"
+        android:layout_height="45dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="14dp"
+        android:ems="10"
+        android:hint="Name"
+        android:inputType="textPersonName"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/textView" />
+
+    <EditText
+        android:id="@+id/tprice"
+        android:layout_width="141dp"
+        android:layout_height="43dp"
+        android:layout_marginStart="29dp"
+        android:layout_marginTop="14dp"
+        android:ems="10"
+        android:hint="Price"
+        android:inputType="textPersonName"
+        app:layout_constraintStart_toEndOf="@+id/tnm"
+        app:layout_constraintTop_toBottomOf="@+id/textView" />
+
+    <EditText
+        android:id="@+id/tcat"
+        android:layout_width="131dp"
+        android:layout_height="41dp"
+        android:layout_marginStart="27dp"
+        android:layout_marginTop="23dp"
+        android:ems="10"
+        android:hint="Category"
+        android:inputType="textPersonName"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tnm" />
+
+    <Button
+        android:id="@+id/bAdd"
+        android:layout_width="146dp"
+        android:layout_height="53dp"
+        android:layout_marginStart="46dp"
+        android:layout_marginTop="22dp"
+        android:text="ADD"
+        app:layout_constraintStart_toEndOf="@+id/tcat"
+        app:layout_constraintTop_toBottomOf="@+id/tprice" />
+
+
+    <ListView
+        android:id="@+id/list1"
+        android:layout_width="352dp"
+        android:layout_height="519dp"
+        android:layout_marginStart="27dp"
+        android:layout_marginTop="17dp"
+        android:foregroundTint="#673AB7"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/bAdd" />
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+
+--------------------------
+ProductPage.java
+--------------------------
+
+package com.example.productapp;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import android.content.Intent;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.TextView;
+import android.widget.Toast;
+
+public class ProductPage extends AppCompatActivity {
+
+    Dbo obj=new Dbo(this,null,null,1);
+
+    TextView tid,tNm,tPr,tCat;
+
+    Button bEdit,bDelete;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_product_page);
+
+        tid=findViewById(R.id.tpid);
+        tid.setEnabled(false);
+        tNm=findViewById(R.id.tpnm);
+        tPr=findViewById(R.id.tprc);
+        tCat=findViewById(R.id.tpcat);
+        bEdit=findViewById(R.id.bEdit);
+        bDelete=findViewById(R.id.bDelete);
+
+        Intent i3=this.getIntent();
+
+        tid.setText(i3.getStringExtra("pid"));
+        tNm.setText(i3.getStringExtra("pnm"));
+        tPr.setText(i3.getStringExtra("pprice"));
+        tCat.setText(i3.getStringExtra("pcat"));
+
+
+        bEdit.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+
+                String msg="";
+                if(!tNm.getText().toString().isEmpty() && !tPr.getText().toString().isEmpty() && !tCat.getText().toString().isEmpty()){
+
+                    obj.edit(Integer.parseInt(tid.getText().toString()),tNm.getText().toString(),Integer.parseInt(tPr.getText().toString().trim()),tCat.getText().toString());
+
+                    msg="Record Updated";
+                    Toast.makeText(getApplicationContext(),msg,Toast.LENGTH_SHORT).show();
+                    finish();
+
+                }else{
+                    msg="Provide details";
+                }
+                Toast.makeText(getApplicationContext(),msg,Toast.LENGTH_SHORT).show();
+
+            }
+        });
+
+        bDelete.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+
+                obj.delete(Integer.parseInt(tid.getText().toString()));
+
+                Toast.makeText(getApplicationContext(),"Deleted",Toast.LENGTH_SHORT).show();
+                finish();
+
+            }
+        });
+
+    }
+}
+
+--------------------------
+ProductPage.xml
+--------------------------
+
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".ProductPage">
+
+    <TextView
+        android:id="@+id/textView2"
+        android:layout_width="208dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="86dp"
+        android:layout_marginTop="55dp"
+        android:text="Product Detail"
+        android:textSize="20sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <EditText
+        android:id="@+id/tpid"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="33dp"
+        android:layout_marginTop="20dp"
+        android:editable="false"
+        android:ems="10"
+        android:inputType="textPersonName"
+        app:layout_constraintStart_toEndOf="@+id/textView3"
+        app:layout_constraintTop_toBottomOf="@+id/textView2" />
+
+    <EditText
+        android:id="@+id/tpnm"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="33dp"
+        android:layout_marginTop="22dp"
+        android:ems="10"
+        android:inputType="textPersonName"
+        app:layout_constraintStart_toEndOf="@+id/textView4"
+        app:layout_constraintTop_toBottomOf="@+id/tpid" />
+
+    <EditText
+        android:id="@+id/tprc"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="33dp"
+        android:layout_marginTop="29dp"
+        android:ems="10"
+        android:inputType="textPersonName"
+        app:layout_constraintStart_toEndOf="@+id/textView5"
+        app:layout_constraintTop_toBottomOf="@+id/tpnm" />
+
+    <EditText
+        android:id="@+id/tpcat"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="33dp"
+        android:layout_marginTop="13dp"
+        android:ems="10"
+        android:inputType="textPersonName"
+        app:layout_constraintStart_toEndOf="@+id/textView6"
+        app:layout_constraintTop_toBottomOf="@+id/tprc" />
+
+    <TextView
+        android:id="@+id/textView3"
+        android:layout_width="98dp"
+        android:layout_height="37dp"
+        android:layout_marginStart="35dp"
+        android:layout_marginTop="28dp"
+        android:text="ID"
+        android:textSize="20sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/textView2" />
+
+    <TextView
+        android:id="@+id/textView4"
+        android:layout_width="98dp"
+        android:layout_height="37dp"
+        android:layout_marginStart="35dp"
+        android:layout_marginTop="30dp"
+        android:text="Name"
+        android:textSize="20sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/textView3" />
+
+    <TextView
+        android:id="@+id/textView5"
+        android:layout_width="98dp"
+        android:layout_height="37dp"
+        android:layout_marginStart="35dp"
+        android:layout_marginTop="29dp"
+        android:text="Price"
+        android:textSize="20sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/textView4" />
+
+    <TextView
+        android:id="@+id/textView6"
+        android:layout_width="98dp"
+        android:layout_height="37dp"
+        android:layout_marginStart="35dp"
+        android:layout_marginTop="29dp"
+        android:text="Category"
+        android:textSize="20sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/textView5" />
+
+    <Button
+        android:id="@+id/bEdit"
+        android:layout_width="135dp"
+        android:layout_height="52dp"
+        android:layout_marginStart="45dp"
+        android:layout_marginTop="36dp"
+        android:text="EDIT"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tpcat" />
+
+    <Button
+        android:id="@+id/bDelete"
+        android:layout_width="135dp"
+        android:layout_height="52dp"
+        android:layout_marginStart="37dp"
+        android:layout_marginTop="36dp"
+        android:text="DELETE"
+        app:layout_constraintStart_toEndOf="@+id/bEdit"
+        app:layout_constraintTop_toBottomOf="@+id/tpcat" />
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+=====================================================End CRUD(UI--Kruti)===================================================
+
+=====================================================Start CRUD(UI--my)(with serchh)=======================================================
+
+create new project must check -language to java 
+                          and -minimum SDK to API 27:Android 8.1(Oreo)
+
+
+AVD===Pixel XL API 27
+Resolution:1440*2560:560dpi
+Target:Android 8.1(Google APIs)
+CPU/ABI=x86
+Size on Disk:3.7 GB
+-------------------------------
+new avd->Pixel XL->next->oreo->api 27->abi->x86->Android 8.1(Google APIs)
+
+----------------
+SDK manager
+----------------
+SDK Platforms
+   Android API 32
+   Android 8.1(Oreo)
+------------------
+SDK Tools
+
+   Android SDK Build-Tools 33-rc2
+   Android Auto API Simulators
+   Android Emulator
+   Android SDK Platform-Tools
+   Google Play Services
+   Intel x86 Emulator Accelerator(HAXM installer)
+    
+--------------------------------
+new java class=employee.java
+new java class=DBHelper.java
+new Activity->emptyActivity->ModifyActivity
+new->XML->LayoutXmlfile
+new Activity->emptyActivity->ShowActivity
 ---------------------------------
 ===============================================================
 employee.java
@@ -779,12 +1298,860 @@ activity_search.xml
 </androidx.constraintlayout.widget.ConstraintLayout>
 
 
+=====================================================End CRUD(UI--my)(with serchh)===================================================
 
-*********************************************************Static CRUD***********************************************************************************************
+=====================================================Start CRUD(UI--priya-serchh)=======================================================
+--------------------
+dbo.java
+--------------------
+
+package com.example.crud_priya;
+
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+
+import androidx.annotation.Nullable;
+
+public class dbo extends SQLiteOpenHelper {
+    public dbo(@Nullable Context context, @Nullable String name, @Nullable SQLiteDatabase.CursorFactory factory, int version) {
+        super(context, "name1", factory, 1);
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        db.execSQL("create table emptb(eid integer primary key autoincrement, ename text,fname text)");
+
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int i, int i1) {
+        onCreate(db);
+    }
+    public void add_Data(String name,String fname)
+    {
+        SQLiteDatabase db = this.getWritableDatabase(); //open db
+        ContentValues cv = new ContentValues(); //class for insert
+//        String fs1name="ythgrfd";
+//        String fsname="trfds";
+
+        cv.put("ename",name);
+        cv.put("fname",fname);
+        db.insert("emptb",null,cv);
+        db.close();
+    }
+
+    public Cursor get_Data()
+    {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor res = db.rawQuery("select * from emptb",null);
+        return res;
+    }
+
+    public void up_rec(String oldName,String name,String fname)
+    {
+
+        SQLiteDatabase db=this.getWritableDatabase();
+        ContentValues cv=new ContentValues();
+        cv.put("ename",name);
+        cv.put("fname",fname);
+        db.update("emptb", cv, "ename = ?", new String[]{oldName});
+        db.close();
+    }
+
+    public void del_rec(String oldName)
+    {
+        SQLiteDatabase db=this.getWritableDatabase();
+        db.delete("emptb", "ename = ?", new String[]{oldName});
+        db.close();
+    }
+    public Cursor populateListview(String s) {
+        SQLiteDatabase db=this.getWritableDatabase();
+        Cursor c1 = db.rawQuery("select * from emptb where ename = ?",new String[]{s} );
+        return c1;
+    }
+
+}
+
+
+--------------------
+MainActivity.java
+--------------------
+
+package com.example.crud_priya;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import android.content.Intent;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.Toast;
+
+public class MainActivity extends AppCompatActivity {
+    dbo obj = new dbo(this,null,null,1);
+    EditText textv,textfname ;
+    Button btn1;
+    Button btn2;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        textv = findViewById(R.id.tb1);
+        textfname = findViewById(R.id.fnametext);
+        btn1 = findViewById(R.id.b1);
+        btn2 = findViewById(R.id.b2);
+        textv.getText().clear();
+        textfname.getText().clear();
+
+        btn1.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                obj.add_Data(textv.getText().toString(),textfname.getText().toString());
+                Toast.makeText(getApplicationContext(),"Data Inserted", Toast.LENGTH_LONG).show();
+                textv.getText().clear();
+                textfname.getText().clear();
+            }
+        });
+        btn2.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                startActivity(new Intent(MainActivity.this,showAllActivity.class));
+
+            }
+        });
+    }
+}
+
+--------------------
+MainActivity.xml
+--------------------
+
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <EditText
+        android:id="@+id/tb1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="100dp"
+        android:layout_marginTop="61dp"
+        android:layout_marginEnd="101dp"
+        android:layout_marginBottom="36dp"
+        android:ems="10"
+        android:inputType="textPersonName"
+        android:minHeight="48dp"
+        android:text="Name"
+        app:layout_constraintBottom_toTopOf="@+id/b1"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/b1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="158dp"
+        android:layout_marginEnd="159dp"
+        android:layout_marginBottom="4dp"
+        android:text="Save"
+        app:layout_constraintBottom_toTopOf="@+id/b2"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/b2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="158dp"
+        android:layout_marginEnd="159dp"
+        android:layout_marginBottom="280dp"
+        android:text="Show All"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="1.0"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <EditText
+        android:id="@+id/fnametext"
+        android:layout_width="239dp"
+        android:layout_height="54dp"
+        android:layout_marginTop="34dp"
+        android:layout_marginEnd="85dp"
+        android:ems="10"
+        android:inputType="textPersonName"
+        android:text="FName"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tb1" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+----------------------
+list_item.xml
+-----------------------
+
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="409dp"
+        android:layout_height="729dp"
+        android:orientation="vertical"
+        tools:layout_editor_absoluteX="1dp"
+        tools:layout_editor_absoluteY="1dp">
+
+        <TextView
+            android:id="@+id/product_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="TextView" />
+    </LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+-----------------------
+showAllActivity.java
+-----------------------
+package com.example.crud_priya;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import android.annotation.SuppressLint;
+import android.content.Intent;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ListView;
+import android.widget.Toast;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class showAllActivity extends AppCompatActivity {
+    dbo obj = new dbo(this,null,null,1);
+    private ArrayList<String> arraylist=new ArrayList<String>();
+    private ArrayAdapter<String> adapter;
+    Button search;
+    EditText EditText1;
+    ListView lv;
+    @SuppressLint("Range")
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_show_all);
+        EditText1=findViewById(R.id.EditText1);
+        search=findViewById(R.id.search);
+        ListView lv;
+        List<String> ls = new ArrayList<>();
+        List<String> fls = new ArrayList<>();
+        lv=findViewById(R.id.lv1);
+
+//        Cursor c;
+//        c=obj.get_Data();
+//        if(c != null && !c.isClosed())
+//        {
+//            c.moveToFirst();
+//            do{
+//                ls.add(c.getString(c.getColumnIndex("ename")).toString());
+//                fls.add(c.getString(c.getColumnIndex("fname")).toString());
+//            }while (c.moveToNext());
+//            ArrayAdapter<String> adp=new ArrayAdapter<>(this, R.layout.support_simple_spinner_dropdown_item, ls);
+//            lv.setAdapter(adp);
+//        }
+//        else
+//        {
+//            Toast.makeText(getApplicationContext(),"No Data", Toast.LENGTH_LONG).show();
+//        }
+        search.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Cursor c1;
+                c1 = obj.populateListview(EditText1.getText().toString());
+                if (c1 != null && !c1.isClosed()) {
+                    c1.moveToFirst();
+                    do {
+                        ls.add(c1.getString(c1.getColumnIndex("ename")).toString());
+                        fls.add(c1.getString(c1.getColumnIndex("fname")).toString());
+                    } while (c1.moveToNext());
+                    ArrayAdapter<String> adp = new ArrayAdapter<>(showAllActivity.this, R.layout.support_simple_spinner_dropdown_item, ls);
+                    lv.setAdapter(adp);
+                } else {
+                    Toast.makeText(getApplicationContext(), "No Data", Toast.LENGTH_LONG).show();
+                }
+            }
+        });
+//       EditText1.addTextChangedListener(new TextWatcher() {
+//           @Override
+//           public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+//
+//           }
+//
+//           @Override
+//           public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+//
+//           }
+//
+//           @Override
+//           public void afterTextChanged(Editable editable) {
+//
+//           }
+//       });
 
 
 
-*******************************************************************************static********************************************************
+
+
+//        List<String> ls = new ArrayList<>();
+//        List<String> fls = new ArrayList<>();
+//        lv=findViewById(R.id.lv1);
+//
+//        EditText1=findViewById(R.id.editText1);
+//        Cursor c;
+//        c=obj.get_Data();
+//        if(c != null && !c.isClosed())
+//        {
+//            c.moveToFirst();
+//            do{
+//                ls.add(c.getString(c.getColumnIndex("ename")).toString());
+//                fls.add(c.getString(c.getColumnIndex("fname")).toString());
+//                String ename = c.getString(c.getColumnIndex("ename"));
+//                String fname = c.getString(c.getColumnIndex("fname"));
+//
+//                arraylist.add("Name :" + ename + "\n" + "Age :" + fname + "\n");
+//            }while (c.moveToNext());
+//
+////            ArrayAdapter<String> adp=new ArrayAdapter<>(this, R.layout.support_simple_spinner_dropdown_item, ls);
+////            lv.setAdapter(adp);
+//            ArrayAdapter<String> adp=new ArrayAdapter<String>(showAllActivity.this, R.layout.support_simple_spinner_dropdown_item,arraylist);
+//                   lv.setAdapter(adp);
+//        }
+//        else
+//        {
+//            Toast.makeText(getApplicationContext(),"No Data", Toast.LENGTH_LONG).show();
+//        }
+//        EditText1.addTextChangedListener(new TextWatcher() {
+//           @Override
+//           public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+//
+//           }
+//
+//           @Override
+//           public void onTextChanged(CharSequence s, int i, int i1, int i2) {
+//
+//                   try {
+//                       Cursor c=obj.populateListview((String) s);
+//                       if (c != null) {
+//                           if (c.moveToFirst()) {
+//                               do {
+//                             ls.add(c.getString(c.getColumnIndex("ename")).toString());
+////                             fls.add(c.getString(c.getColumnIndex("fname")).toString());
+//                                   String ename = c.getString(c.getColumnIndex("ename"));
+//                                   String fname = c.getString(c.getColumnIndex("fname"));
+//
+//                                   arraylist.add("Name :" + ename + "\n" + "Age :" + fname + "\n");
+//
+//                               } while (c.moveToNext());
+//                           }
+//
+//                       }
+//
+//                   } catch (Exception e) {
+//                       e.printStackTrace();
+//                   }
+//             ArrayAdapter<String> adp=new ArrayAdapter<String>(showAllActivity.this, R.layout.support_simple_spinner_dropdown_item,arraylist);
+//
+////               adapter = new ArrayAdapter<String>(this, R.layout.list_item, R.id.product_name,);
+//               lv.setAdapter(adp);
+//
+//
+//
+//
+////               Cursor c;
+////               c=obj.populateListview(s.toString());
+////               if(c != null && !c.isClosed())
+////               {
+////                   c.moveToFirst();
+////                   do{
+////                       ls.add(c.getString(c.getColumnIndex("ename")).toString());
+////                       fls.add(c.getString(c.getColumnIndex("fname")).toString());
+////                       String ename = c.getString(c.getColumnIndex("ename"));
+////                       String fname = c.getString(c.getColumnIndex("fname"));
+////                       arraylist.add("Name :" + ename + " " + "Age :" + fname + "\n");
+////                   }while (c.moveToNext());
+////                   ArrayAdapter<String> adp=new ArrayAdapter<String>(showAllActivity.this, R.layout.support_simple_spinner_dropdown_item,arraylist);
+////                   lv.setAdapter(adp);
+////               }
+////               else
+////               {
+////                   Toast.makeText(getApplicationContext(),"No Data", Toast.LENGTH_LONG).show();
+////               }
+//
+//           }
+//
+//
+//
+//           @Override
+//           public void afterTextChanged(Editable editable) {
+//
+//           }
+//       });
+//        Cursor c;
+//        c=obj.get_Data();
+//        if(c != null && !c.isClosed())
+//        {
+//            c.moveToFirst();
+//            do{
+//                ls.add(c.getString(c.getColumnIndex("ename")).toString());
+//                fls.add(c.getString(c.getColumnIndex("fname")).toString());
+//            }while (c.moveToNext());
+//            ArrayAdapter<String> adp=new ArrayAdapter<>(this, R.layout.support_simple_spinner_dropdown_item, ls);
+//            lv.setAdapter(adp);
+//        }
+//        else
+//        {
+//            Toast.makeText(getApplicationContext(),"No Data", Toast.LENGTH_LONG).show();
+//        }
+       lv.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+           @Override
+           public void onItemClick(AdapterView<?> adapterView, View view, int position, long l) {
+               Intent intent = new Intent(showAllActivity.this,UpdateActivity.class);
+               intent.putExtra("Data",ls.get(position));
+               intent.putExtra("Data1",fls.get(position));
+               startActivity(intent);
+           }
+       });
+    }
+}
+
+-----------------------
+showAllActivity.xml
+-----------------------
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".showAllActivity">
+
+
+    <EditText
+        android:id="@+id/EditText1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="40dp"
+        android:ems="10"
+        android:inputType="textPersonName"
+        android:text="Name"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/search"
+        android:layout_width="135dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="40dp"
+        android:text="Button"
+        app:layout_constraintStart_toEndOf="@+id/EditText1"
+        tools:layout_editor_absoluteY="0dp" />
+
+    <ListView
+        android:id="@+id/lv1"
+        android:layout_width="412dp"
+        android:layout_height="780dp"
+        android:layout_marginTop="45dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/EditText1"
+        tools:ignore="MissingConstraints" />
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+
+-----------------------
+UpdateActivity.java
+-----------------------
+
+package com.example.crud_priya;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import android.content.Intent;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.Toast;
+
+public class UpdateActivity extends AppCompatActivity {
+    dbo obj = new dbo(this,null,null,1);
+    EditText ename,fname;
+    Button btnUpdate,btnDelete;
+    String oldName;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_update);
+        ename = findViewById(R.id.t1);
+        fname = findViewById(R.id.fname);
+        btnUpdate = findViewById(R.id.b3);
+        btnDelete = findViewById(R.id.b4);
+
+        ename.setText(getIntent().getExtras().getSerializable("Data").toString());
+        fname.setText(getIntent().getExtras().getSerializable("Data1").toString());
+
+        btnUpdate.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                obj.up_rec(getIntent().getExtras().getSerializable("Data").toString(),ename.getText().toString(),fname.getText().toString());
+                Toast.makeText(getApplicationContext(),"Record Updated", Toast.LENGTH_LONG).show();
+                startActivity(new Intent(UpdateActivity.this,showAllActivity.class));
+
+            }
+        });
+        btnDelete.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                obj.del_rec(getIntent().getExtras().getSerializable("Data").toString());
+                Toast.makeText(getApplicationContext(),"Record Deleted", Toast.LENGTH_LONG).show();
+                startActivity(new Intent(UpdateActivity.this,showAllActivity.class));
+
+            }
+        });
+    }
+}
+
+-----------------------
+UpdateActivity.xml
+-----------------------
+
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".UpdateActivity">
+    <EditText
+        android:id="@+id/t1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="100dp"
+        android:layout_marginTop="111dp"
+        android:layout_marginBottom="104dp"
+        android:ems="10"
+        android:inputType="textPersonName"
+        android:minHeight="48dp"
+        android:text="Name"
+        app:layout_constraintBottom_toTopOf="@+id/b3"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="1.0" />
+
+    <Button
+        android:id="@+id/b3"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="158dp"
+        android:layout_marginEnd="159dp"
+        android:layout_marginBottom="43dp"
+        android:text="Update"
+        app:layout_constraintBottom_toTopOf="@+id/b4"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/b4"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="161dp"
+        android:layout_marginEnd="156dp"
+        android:layout_marginBottom="181dp"
+        android:text="Delete"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <EditText
+        android:id="@+id/fname"
+        android:layout_width="223dp"
+        android:layout_height="62dp"
+        android:layout_marginTop="25dp"
+        android:layout_marginEnd="100dp"
+        android:ems="10"
+        android:inputType="textPersonName"
+        android:text="FName"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/t1" />
+</androidx.constraintlayout.widget.ConstraintLayout>
+
+=====================================================End CRUD(UI--priya-serch)===================================================
+
+=====================================================Start CRUD(UI--samiha)=======================================================
+
+XML================================================================================
+
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="10dp"
+    tools:context=".MainActivity">
+    <TextView
+        android:id="@+id/texttitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Please enter the details below"
+        android:textSize="24dp"
+        android:layout_marginTop="20dp">
+    <EditText
+        android:id="@+id/name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Name"
+        android:textSize="24dp"
+        android:layout_below="@+id/texttitle"
+        android:inputType="textPersonName"/>
+    <EditText
+        android:id="@+id/contact"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Contact"
+        android:textSize="24dp"
+        android:layout_below="@+id/name"
+        android:inputType="number"/>
+    <EditText
+        android:id="@+id/dob"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Date of Birth"
+        android:textSize="24dp"
+        android:layout_below="@+id/contact"
+        android:inputType="number"/>
+    <Button
+        android:id="@+id/btnInsert"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="24dp"
+        android:text="Insert New Data"
+        android:layout_marginTop="30dp"
+        android:layout_below="@id/dob"/>
+    <Button
+        android:id="@+id/btnUpdate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="24dp"
+        android:text="Update Data"
+        android:layout_below="@id/btnInsert"/>
+    <Button
+        android:id="@+id/btnDelete"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="24dp"
+        android:text="Delete Existing Data"
+        android:layout_below="@id/btnUpdate"/>
+    <Button
+        android:id="@+id/btnView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="24dp"
+        android:text="View Data"
+        android:layout_below="@id/btnDelete"/>
+</RelativeLayout>
+
+
+JAVA FILE=========================================================================================
+DBHelper.java 
+
+package com.allcodingtutorials.sqliteapplication;
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+
+import androidx.annotation.Nullable;
+
+public class DBHelper extends SQLiteOpenHelper {
+    public DBHelper(Context context) {
+        super(context, "Userdata.db", null, 1);
+    }
+    @Override
+    public void onCreate(SQLiteDatabase DB) {
+        DB.execSQL("create Table Userdetails(name TEXT primary key, contact TEXT, dob TEXT)");
+    }
+    @Override
+    public void onUpgrade(SQLiteDatabase DB, int i, int ii) {
+        DB.execSQL("drop Table if exists Userdetails");
+    }
+    public Boolean insertuserdata(String name, String contact, String dob)
+    {
+        SQLiteDatabase DB = this.getWritableDatabase();
+        ContentValues contentValues = new ContentValues();
+        contentValues.put("name", name);
+        contentValues.put("contact", contact);
+        contentValues.put("dob", dob);
+        long result=DB.insert("Userdetails", null, contentValues);
+        if(result==-1){
+            return false;
+        }else{
+            return true;
+        }
+    }
+    public Boolean updateuserdata(String name, String contact, String dob)
+    {
+        SQLiteDatabase DB = this.getWritableDatabase();
+        ContentValues contentValues = new ContentValues();
+        contentValues.put("contact", contact);
+        contentValues.put("dob", dob);
+        Cursor cursor = DB.rawQuery("Select * from Userdetails where name = ?", new String[]{name});
+        if (cursor.getCount() > 0) {
+            long result = DB.update("Userdetails", contentValues, "name=?", new String[]{name});
+            if (result == -1) {
+                return false;
+            } else {
+                return true;
+            }
+        } else {
+            return false;
+        }
+    }
+    public Boolean deletedata (String name)
+    {
+        SQLiteDatabase DB = this.getWritableDatabase();
+        Cursor cursor = DB.rawQuery("Select * from Userdetails where name = ?", new String[]{name});
+        if (cursor.getCount() > 0) {
+            long result = DB.delete("Userdetails", "name=?", new String[]{name});
+            if (result == -1) {
+                return false;
+            } else {
+                return true;
+            }
+        } else {
+            return false;
+        }
+    }
+
+    public Cursor getdata ()
+    {
+        SQLiteDatabase DB = this.getWritableDatabase();
+        Cursor cursor = DB.rawQuery("Select * from Userdetails", null);
+        return cursor;
+    }
+}
+
+============================================================================================
+MainActivity
+
+package com.allcodingtutorials.sqliteapplication;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import android.database.Cursor;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.Toast;
+public class MainActivity extends AppCompatActivity {
+    EditText name, contact, dob;
+    Button insert, update, delete, view;
+    DBHelper DB;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        name = findViewById(R.id.name);
+        contact = findViewById(R.id.contact);
+        dob = findViewById(R.id.dob);
+        insert = findViewById(R.id.btnInsert);
+        update = findViewById(R.id.btnUpdate);
+        delete = findViewById(R.id.btnDelete);
+        view = findViewById(R.id.btnView);
+        DB = new DBHelper(this);
+        insert.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                String nameTXT = name.getText().toString();
+                String contactTXT = contact.getText().toString();
+                String dobTXT = dob.getText().toString();
+
+                Boolean checkinsertdata = DB.insertuserdata(nameTXT, contactTXT, dobTXT);
+                if(checkinsertdata==true)
+                    Toast.makeText(MainActivity.this, "New Entry Inserted", Toast.LENGTH_SHORT).show();
+                else
+                    Toast.makeText(MainActivity.this, "New Entry Not Inserted", Toast.LENGTH_SHORT).show();
+            }        });
+        update.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                String nameTXT = name.getText().toString();
+                String contactTXT = contact.getText().toString();
+                String dobTXT = dob.getText().toString();
+
+                Boolean checkupdatedata = DB.updateuserdata(nameTXT, contactTXT, dobTXT);
+                if(checkupdatedata==true)
+                    Toast.makeText(MainActivity.this, "Entry Updated", Toast.LENGTH_SHORT).show();
+                else
+                    Toast.makeText(MainActivity.this, "New Entry Not Updated", Toast.LENGTH_SHORT).show();
+            }        });
+        delete.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                String nameTXT = name.getText().toString();
+                Boolean checkudeletedata = DB.deletedata(nameTXT);
+                if(checkudeletedata==true)
+                    Toast.makeText(MainActivity.this, "Entry Deleted", Toast.LENGTH_SHORT).show();
+                else
+                    Toast.makeText(MainActivity.this, "Entry Not Deleted", Toast.LENGTH_SHORT).show();
+            }        });
+
+        view.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Cursor res = DB.getdata();
+                if(res.getCount()==0){
+                    Toast.makeText(MainActivity.this, "No Entry Exists", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                StringBuffer buffer = new StringBuffer();
+                while(res.moveToNext()){
+                    buffer.append("Name :"+res.getString(0)+"\n");
+                    buffer.append("Contact :"+res.getString(1)+"\n");
+                    buffer.append("Date of Birth :"+res.getString(2)+"\n\n");
+                }
+
+                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                builder.setCancelable(true);
+                builder.setTitle("User Entries");
+                builder.setMessage(buffer.toString());
+                builder.show();
+            }        });
+    }}
+
+=====================================================End CRUD(UI--samiha)===================================================
+
+
+
+================================================Static CRUD=========================================
+
 dbo.java
 
 package com.example.cruddstatic;
@@ -869,632 +2236,128 @@ public class MainActivity extends AppCompatActivity {
     }
 
 }
- 
-********************************************************************************************************************************************************
+===================================================End Static Crud===============================================
 
-********************************************************************************************************************************************************
-sqlite file
-
-
-========================
-
-Employee.java
-
-package com.example.empcrud2;
-
-public class Employee {
-    private int empid;
-    private String empname;
-    private String salary;
-    private String designation;
-    private String department;
-
-    public Employee()
-    {}
-
-    public Employee(int empid, String empname, String salary, String designation, String department) {
-        this.empid = empid;
-        this.empname = empname;
-        this.salary = salary;
-        this.designation = designation;
-        this.department = department;
-    }
-
-    public Employee(String empname, String salary, String designation, String department) {
-        this.empname = empname;
-        this.salary = salary;
-        this.designation = designation;
-        this.department = department;
-    }
-
-    public String getSalary() {
-        return salary;
-    }
-
-    public void setSalary(String salary) {
-        this.salary = salary;
-    }
-
-    public int getEmpid() {
-        return empid;
-    }
-
-    public void setEmpid(int empid) {
-        this.empid = empid;
-    }
-
-    public String getEmpname() {
-        return empname;
-    }
-
-    public void setEmpname(String empname) {
-        this.empname = empname;
-    }
-
-    public String getDesignation() {
-        return designation;
-    }
-
-    public void setDesignation(String designation) {
-        this.designation = designation;
-    }
-
-    public String getDepartment() {
-        return department;
-    }
-
-    public void setDepartment(String department) {
-        this.department = department;
-    }
-}
-
-DBHelper.java
-
-package com.example.empcrud2;
-
-import android.content.ContentValues;
-import android.content.Context;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteOpenHelper;
-import android.widget.Toast;
-
-import androidx.annotation.Nullable;
-
-public class DBHelper extends SQLiteOpenHelper {
-
-    public static final String tablename = "employeetb";
-    public static final String _id = "_id";
-    public static final String empname = "employeename";
-    public static final String salary = "salary";
-    public static final String designation = "designation";
-    public static final String department = "department";
-
-    SQLiteDatabase database;
-    static final String dbname = "employee1.db";
-
-    Context context;
-
-    static final int dbversion = 1;
-
-    private static final String createtable = "create table " + tablename + "(" + _id + " integer primary key autoincrement," + empname + " text not null," + salary + " text not null," + designation + " text not null," + department + " text not null);";
-
-
-
-    public DBHelper(@Nullable Context context) {
-        super(context, dbname, null, dbversion);
-        this.context = context;
-    }
-
-    @Override
-    public void onCreate(SQLiteDatabase sqLiteDatabase) {
-        sqLiteDatabase.execSQL(createtable);
-    }
-
-    @Override
-    public void onUpgrade(SQLiteDatabase sqLiteDatabase, int i, int i1) {
-
-    }
-
-    public String insert(Employee e)
-    {
-        try{
-            database =this.getWritableDatabase();
-            ContentValues contentValues = new ContentValues();
-            contentValues.put(empname,e.getEmpname());
-            contentValues.put(salary,e.getSalary());
-            contentValues.put(designation,e.getDesignation());
-            contentValues.put(department,e.getDepartment());
-            long id =database.insert(tablename,null,contentValues);
-            Toast.makeText(context, "Inserted " + id, Toast.LENGTH_LONG).show();
-            return "Inserted " + id;
-        }
-        catch (Exception ex)
-        {
-            Toast.makeText(context, ex.getMessage(), Toast.LENGTH_SHORT).show();
-            return ex.getMessage();
-        }
-    }
-
-    public Cursor fetch()
-    {
-        database =this.getWritableDatabase();
-        String[] columns = new String[] { _id,empname,salary,designation,department };
-        Cursor cursor = database.query(tablename,columns,null,null,null,null,null);
-        if(cursor != null)
-        {
-            cursor.moveToFirst();
-        }
-        return cursor;
-    }
-
-    public Employee SearchStudent(int _id) {
-        database = this.getReadableDatabase();
-
-        Employee s=new Employee();
-        Cursor cursor = database.query(tablename, null, "_id=?", new String[]{_id+""}, null, null, null);
-        Toast.makeText(context, "Found "+cursor.getCount() , Toast.LENGTH_LONG).show();
-        if (cursor.getCount()>0) {
-
-            cursor.moveToFirst();
-//            Toast.makeText(context, "Student"+cursor.getString(1) , Toast.LENGTH_LONG).show();
-            s.setEmpid(cursor.getInt(0));
-            s.setEmpname(cursor.getString(1));
-            s.setSalary(cursor.getString(2));
-            s.setDesignation(cursor.getString(3));
-            s.setDepartment(cursor.getString(4));
-            //Toast.makeText(context, "Student Found "+s.getStudentName() + s.getID() +s.getStudentLName(), Toast.LENGTH_LONG).show();
-
-        }
-        return s;
-    }
-
-    public String update(Employee e) {
-        database = this.getWritableDatabase();
-
-        ContentValues contentValues = new ContentValues();
-        contentValues.put(empname, e.getEmpname());
-        contentValues.put(salary, e.getSalary());
-        contentValues.put(designation, e.getDesignation());
-        contentValues.put(department,e.getDepartment());
-        int i = database.update( tablename, contentValues,  _id + " = " + e.getEmpid(), null);
-        return "Updated"+i;
-    }
-
-    public String delete(int _id2) {
-
-        database = this.getWritableDatabase();
-
-        long id=database.delete(tablename,  _id + "=" + _id2, null);
-        return  "Deleted "+id;
-    }
-}
-
-activity_main.xml
-
+==============================================Shared Prefrence(Start)==================================================
+--------------
+xml file
+--------------
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    tools:context=".MainActivity">
+<RelativeLayout
+	xmlns:android="http://schemas.android.com/apk/res/android"
+	xmlns:tools="http://schemas.android.com/tools"
+	android:layout_width="match_parent"
+	android:layout_height="match_parent"
+	tools:context=".MainActivity"
+	tools:ignore="HardcodedText">
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+	<TextView
+		android:id="@+id/textview"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_centerHorizontal="true"
+		android:layout_marginTop="32dp"
+		android:text="Shared Preferences Demo"
+		android:textColor="@android:color/black"
+		android:textSize="24sp" />
 
-        <EditText
-            android:id="@+id/txtEname"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:ems="10"
-            android:hint="Enter Name"
-            android:inputType="textPersonName" />
+	<!--EditText to take the data from the user
+		and save the data in SharedPreferences-->
+	<EditText
+		android:id="@+id/edit1"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_below="@+id/textview"
+		android:layout_marginStart="16dp"
+		android:layout_marginTop="8dp"
+		android:layout_marginEnd="16dp"
+		android:hint="Enter your Name"
+		android:padding="10dp" />
 
-        <EditText
-            android:id="@+id/txtSalary"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:ems="10"
-            android:hint="Enter Salary"
-            android:inputType="textPersonName" />
+	<!--EditText to take the data from the user and
+		save the data in SharedPreferences-->
+	<EditText
+		android:id="@+id/edit2"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_below="@+id/edit1"
+		android:layout_marginStart="16dp"
+		android:layout_marginTop="8dp"
+		android:layout_marginEnd="16dp"
+		android:hint="Enter your Age"
+		android:padding="10dp"
+		android:inputType="number" />
 
-        <EditText
-            android:id="@+id/txtDesignation"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:ems="10"
-            android:hint="Enter Designation"
-            android:inputType="textPersonName" />
+</RelativeLayout>
 
-        <EditText
-            android:id="@+id/txtDepartment"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:ems="10"
-            android:hint="Enter Department"
-            android:inputType="textPersonName" />
-
-        <Button
-            android:id="@+id/btnInsert"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Insert" />
-
-        <Button
-            android:id="@+id/btnShow"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Show" />
-    </LinearLayout>
-</androidx.constraintlayout.widget.ConstraintLayout>
-
+----------------------
 MainActivity.java
-
-package com.example.empcrud2;
+-----------------------
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.view.View;
-import android.widget.Button;
 import android.widget.EditText;
-import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity {
 
-    EditText txtEname,txtSalary,txtDesignation,txtDepartment;
-    Button btnInsert,btnShow;
+	private EditText name, age;
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_main);
+		name = findViewById(R.id.edit1);
+		age = findViewById(R.id.edit2);
+	}
 
-        txtEname = (EditText) findViewById(R.id.txtEname);
-        txtSalary = (EditText) findViewById(R.id.txtSalary);
-        txtDesignation = (EditText) findViewById(R.id.txtDesignation);
-        txtDepartment = (EditText) findViewById(R.id.txtDepartment);
-        btnInsert = (Button) findViewById(R.id.btnInsert);
-        btnShow = (Button) findViewById(R.id.btnShow);
+	// Fetch the stored data in onResume()
+	// Because this is what will be called
+	// when the app opens again
+	@Override
+	protected void onResume() {
+		super.onResume();
 
-        btnInsert.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                DBHelper dbHelper = new DBHelper(getApplicationContext());
-                String ename = txtEname.getText().toString();
-                String sal = txtSalary.getText().toString();
-                String des = txtDesignation.getText().toString();
-                String dep = txtDepartment.getText().toString();
-                Employee emp = new Employee(ename,sal,des,dep);
-                String msg = dbHelper.insert(emp);
-                Toast.makeText(getApplicationContext(),msg, Toast.LENGTH_LONG).show();
-            }
-        });
+		// Fetching the stored data
+		// from the SharedPreference
+		SharedPreferences sh = getSharedPreferences("MySharedPref", MODE_PRIVATE);
 
-        btnShow.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Intent it = new Intent(getApplicationContext(),ShowActivity.class);
-                startActivity(it);
-            }
-        });
+		String s1 = sh.getString("name", "");
+		int a = sh.getInt("age", 0);
 
-    }
+		// Setting the fetched data
+		// in the EditTexts
+		name.setText(s1);
+		age.setText(String.valueOf(a));
+	}
+
+	// Store the data in the SharedPreference
+	// in the onPause() method
+	// When the user closes the application
+	// onPause() will be called
+	// and data will be stored
+	@Override
+	protected void onPause() {
+		super.onPause();
+
+		// Creating a shared pref object
+		// with a file name "MySharedPref"
+		// in private mode
+		SharedPreferences sharedPreferences = getSharedPreferences("MySharedPref", MODE_PRIVATE);
+		SharedPreferences.Editor myEdit = sharedPreferences.edit();
+
+		// write all the data entered by the user in SharedPreference and apply
+		myEdit.putString("name", name.getText().toString());
+		myEdit.putInt("age", Integer.parseInt(age.getText().toString()));
+		myEdit.apply();
+	}
 }
 
-activity_show.xml
 
-<?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    tools:context=".ShowActivity">
+==============================================Shared Prefrence(End)==================================================
 
-    <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginStart="24dp"
-        android:layout_marginTop="24dp"
-        android:layout_marginEnd="24dp"
-        android:layout_marginBottom="8dp"
-        android:orientation="vertical"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-
-        <ListView
-            android:id="@+id/lv"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent" />
-    </LinearLayout>
-</androidx.constraintlayout.widget.ConstraintLayout>
-
-rowlayout.xml
-
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent">
-    <TextView
-        android:id="@+id/tv1"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:text="TextView" />
-
-    <TextView
-        android:id="@+id/tv2"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:text="TextView" />
-
-    <TextView
-        android:id="@+id/tv3"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:text="TextView" />
-
-    <TextView
-        android:id="@+id/tv4"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:text="TextView" />
-
-    <TextView
-        android:id="@+id/tv5"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:text="TextView" />
-</LinearLayout>
-
-ShowActivity.java
-
-package com.example.empcrud2;
-
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.cursoradapter.widget.SimpleCursorAdapter;
-
-import android.content.Intent;
-import android.database.Cursor;
-import android.os.Bundle;
-import android.view.Menu;
-import android.view.MenuInflater;
-import android.view.MenuItem;
-import android.view.View;
-import android.widget.AdapterView;
-import android.widget.ListView;
-import android.widget.Toast;
-
-import java.util.List;
-
-public class ShowActivity extends AppCompatActivity {
-    ListView listView;
-    private SimpleCursorAdapter adapter;
-    DBHelper dbHelper;
-    final String[] from = new String[] { dbHelper._id,
-            dbHelper.empname, dbHelper.salary,dbHelper.designation,dbHelper.department };
-    Cursor cursor;
-    final int[] to = new int[] { R.id.tv1, R.id.tv2, R.id.tv3 ,R.id.tv4,R.id.tv5};
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        try {
-            setContentView(R.layout.activity_show);
-            listView = (ListView) findViewById(R.id.lv);
-            dbHelper = new DBHelper(getApplicationContext());
-            cursor = dbHelper.fetch();
-            Toast.makeText(getApplicationContext(), "Cursor"+cursor.getCount(), Toast.LENGTH_LONG).show();
-            listView = (ListView) findViewById(R.id.lv);
-
-
-            adapter = new SimpleCursorAdapter(this, R.layout.rowlayout, cursor, from, to, 0);
-            adapter.notifyDataSetChanged();
-
-            listView.setAdapter(adapter);
-            listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-                @Override
-                public void onItemClick(AdapterView<?> parent, View view, int position, long viewId) {
-
-                    cursor.moveToPosition(position);
-                    String id=cursor.getString(0);
-                    Toast.makeText(getApplicationContext()," ID to "+id,Toast.LENGTH_LONG).show();
-                    Intent intent = new Intent(getApplicationContext(), ModifyActivity.class);
-                    intent.putExtra("id", id);
-
-                    startActivity(intent);
-                }
-            });
-        }
-        catch (Exception ex)
-        {
-            Toast.makeText(getApplicationContext(),"err"+ex.getMessage(),Toast.LENGTH_LONG).show();
-        }
-    }
-}
-
-activity_modify.xml
-
-<?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    tools:context=".ModifyActivity">
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_marginTop="32dp"
-        android:orientation="vertical"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
-
-
-        <EditText
-            android:id="@+id/ed"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:ems="10"
-            android:hint="Id"
-            android:inputType="textPersonName" />
-
-        <EditText
-            android:id="@+id/ed1"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:ems="10"
-            android:hint="Name"
-            android:inputType="textPersonName" />
-
-        <EditText
-            android:id="@+id/ed2"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:ems="10"
-            android:hint="Salary"
-            android:inputType="textPersonName" />
-
-        <EditText
-            android:id="@+id/ed3"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:ems="10"
-            android:hint="Designation"
-            android:inputType="textPersonName" />
-
-        <EditText
-            android:id="@+id/ed4"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:ems="10"
-            android:hint="Department"
-            android:inputType="textPersonName" />
-
-        <TableRow
-            android:layout_width="match_parent"
-            android:layout_height="match_parent">
-
-            <Button
-                android:id="@+id/btnEdit"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Edit" />
-
-            <Button
-                android:id="@+id/btnDelete"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Delete" />
-
-        </TableRow>
-
-    </LinearLayout>
-</androidx.constraintlayout.widget.ConstraintLayout>
-
-ModifyActivity.java
-
-package com.example.empcrud2;
-
-import androidx.appcompat.app.AppCompatActivity;
-
-import android.content.Intent;
-import android.os.Bundle;
-import android.view.View;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.TextView;
-import android.widget.Toast;
-
-public class ModifyActivity extends AppCompatActivity {
-    Button bedit, bdelete;
-    EditText edid,edname,edlname,eddes,eddep;
-    DBHelper databaseHelper;
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_modify);
-        edid=(EditText)findViewById(R.id.ed);
-        edname=(EditText)findViewById(R.id.ed1);
-        edlname=(EditText)findViewById(R.id.ed2);
-        eddes = (EditText) findViewById(R.id.ed3);
-        eddep = (EditText) findViewById(R.id.ed4);
-
-        bedit=(Button)findViewById(R.id.btnEdit);
-        bdelete=(Button)findViewById(R.id.btnDelete);
-
-        databaseHelper = new DBHelper(getApplicationContext());
-        Intent it=getIntent();
-        int id=Integer.parseInt( it.getStringExtra("id"));
-        Toast.makeText(getApplicationContext(),"ID "+id, Toast.LENGTH_LONG).show();
-        Employee ss=databaseHelper.SearchStudent(id);
-
-        if(ss!=null) {
-            edid.setText(ss.getEmpid()+"");
-            edname.setText(ss.getEmpname());
-            edlname.setText(ss.getSalary());
-            eddes.setText(ss.getDesignation());
-            eddep.setText(ss.getDepartment());
-            Toast.makeText(getApplicationContext()," Student found ", Toast.LENGTH_LONG).show();
-        }
-        else
-        {
-            Toast.makeText(getApplicationContext(),"No Student found ", Toast.LENGTH_LONG).show();
-
-        }
-
-        bdelete.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-
-                databaseHelper = new DBHelper(getApplicationContext());
-                int id = Integer.parseInt(edid.getText().toString());
-                String msg= databaseHelper.delete(id);
-                Toast.makeText(getApplicationContext(),"Deleted "+msg, Toast.LENGTH_LONG).show();
-                Intent intent=new Intent(ModifyActivity.this,ShowActivity.class);
-                startActivity(intent);
-            }
-        });
-        bedit.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                //MyDBHelper dbHandler = new MyDBHelper(getApplicationContext(), null, null, 1);
-                databaseHelper = new DBHelper(getApplicationContext());
-                int id = Integer.parseInt(edid.getText().toString());
-                String name = edname.getText().toString();
-                String lname = edlname.getText().toString();
-                String desig = eddes.getText().toString();
-                String dept = eddep.getText().toString();
-                Employee emp = new Employee(id, name,lname,desig,dept);
-                String msg= databaseHelper.update(emp);
-                Toast.makeText(getApplicationContext(),"Updated "+msg, Toast.LENGTH_LONG).show();
-                Intent intent=new Intent(ModifyActivity.this,ShowActivity.class);
-                startActivity(intent);
-            }
-        });
-    }
-}
-
-********************************************************************************************************************************************************
-
-
+======================================================Assignment(Start)============================================
 
 
 QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ
@@ -3916,3 +4779,1543 @@ return res;
 }
 }
 Output:
+
+
+======================================================Assignment(End)============================================
+
+
+
+
+==================================================================rrrrrrr============================================
+
+database will be inside data->data->projectFOlder->databases
+
+=============================================Login Register with Crud(patient_tracker)==================================
+dbo.java
+--------------------------------------------
+package com.example.patient_tracker;
+
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+
+import androidx.annotation.Nullable;
+
+public class dbo extends SQLiteOpenHelper {
+    public dbo(@Nullable Context context, @Nullable String name, @Nullable SQLiteDatabase.CursorFactory factory, int version) {
+        super(context, "patientdb2", factory, version);
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+//        db.execSQL("create table Register(uid integer primary key autoincrement, uname text,upassword text)");
+        db.execSQL("create table patienttb(pid integer primary key autoincrement, pemail text,ppassword text,pname text,pdisease text,pmedication text,pdate text,pcost text)");
+
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int i, int i1) {
+//        db.execSQL("create table patienttb(pid integer primary key autoincrement, pname text,pdisease text,pmedication text,pdate text,pcost text)");
+
+//        db.execSQL("drop table if exists Register");
+        db.execSQL("drop table if exists patienttb");
+        onCreate(db);
+    }
+    public boolean login(String uname1, String upassword1) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor c = db.rawQuery("select * from patienttb where pemail = ? and ppassword = ?",new String[]{uname1,upassword1});
+
+        if(c.getCount() <= 0) {
+            c.close();
+            db.close();
+            return false;
+        } else {
+            c.close();
+            db.close();
+            return true;
+        }
+    }
+
+//    public void add_register()
+//    {
+//        SQLiteDatabase db = this.getWritableDatabase(); //open db
+//        ContentValues cv = new ContentValues(); //class for insert
+//        String user="radhika@gmail.com";
+//        String pass="radhika";
+//
+//        cv.put("uname",user);
+//        cv.put("upassword",pass);
+//
+//        db.insert("Register",null,cv);
+//        db.close();
+//    }
+    public void add_patient(String pemail,String ppassword,String pname,String pdisease,String pmedication,String pdate,String pcost)
+//    public void add_patient()
+    {
+        SQLiteDatabase db = this.getWritableDatabase(); //open db
+        ContentValues cv = new ContentValues(); //class for insert
+
+
+//        String name="radhika";
+//        String disease="fever";
+//        String medication="radhika";
+//        String date="fever";
+//        String cost="radhika";
+
+        cv.put("pemail",pemail);
+        cv.put("ppassword",ppassword);
+        cv.put("pname",pname);
+        cv.put("pdisease",pdisease);
+        cv.put("pmedication",pmedication);
+        cv.put("pdate",pdate);
+        cv.put("pcost",pcost);
+
+        db.insert("patienttb",null,cv);
+        db.close();
+    }
+
+    public Cursor get_Data()
+    {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor res = db.rawQuery("select * from patienttb",null);
+        return res;
+    }
+
+    public void up_rec(String data, String pname, String pdisease)
+    {
+
+        SQLiteDatabase db=this.getWritableDatabase();
+        ContentValues cv=new ContentValues();
+        cv.put("pname",pname);
+        cv.put("pdisease",pdisease);
+        db.update("patienttb", cv, "pname = ?", new String[]{data});
+        db.close();
+    }
+
+    public void del_rec(String pname)
+    {
+        SQLiteDatabase db=this.getWritableDatabase();
+        db.delete("patienttb", "pname = ?", new String[]{pname});
+        db.close();
+    }
+}
+----------------------------------------------------------------
+mainActivity.xml
+---------------------------------
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <EditText
+            android:id="@+id/email"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ems="10"
+            android:inputType="textPersonName"
+            android:text="Name"
+            tools:ignore="MissingConstraints" />
+
+        <EditText
+            android:id="@+id/password"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ems="10"
+            android:inputType="textPassword"
+            tools:ignore="MissingConstraints" />
+
+        <Button
+            android:id="@+id/login"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Button"
+            tools:ignore="MissingConstraints" />
+
+        <TextView
+            android:id="@+id/registerlink"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="dont have an account? Register"
+            android:textColor="#3F51B5"
+            tools:ignore="MissingConstraints" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+-------------------------------------------------
+MainActivity
+------------------
+package com.example.patient_tracker;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import android.content.Intent;
+import android.database.Cursor;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
+import android.widget.Toast;
+
+public class MainActivity extends AppCompatActivity {
+    dbo obj = new dbo(this,null,null,1);
+    EditText email,password;
+    Button login;
+    TextView registerlink;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        email = findViewById(R.id.email);
+        password = findViewById(R.id.password);
+        login = findViewById(R.id.login);
+        registerlink = findViewById(R.id.registerlink);
+        Cursor c;
+        registerlink.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent i = new Intent(getApplicationContext(),InsertActivity.class);
+                startActivity(i);
+            }
+        });
+        login.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+//                obj.add_register();
+//                obj.add_patient();
+                Boolean validUser = obj.login(email.getText().toString(), password.getText().toString());
+
+                if(validUser == true) {
+                    Intent i = new Intent(getApplicationContext(), showActivity.class);
+                    startActivity(i);
+                }
+                else
+                {
+                    Toast.makeText(getApplicationContext(),"No Data", Toast.LENGTH_LONG).show();
+
+                }
+            }
+        });
+    }
+}
+------------------------------------------------------------------------
+activity_show.xml
+--------------------
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".showActivity">
+
+    <LinearLayout
+        android:layout_width="324dp"
+        android:layout_height="394dp"
+        android:layout_marginStart="1dp"
+        android:layout_marginTop="1dp"
+        android:layout_marginEnd="1dp"
+        android:layout_marginBottom="1dp"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ListView
+            android:id="@+id/lv1"
+            android:layout_width="match_parent"
+            android:layout_height="272dp">
+
+        </ListView>
+
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/insertpatient"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="96dp"
+        android:text="insert"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+</androidx.constraintlayout.widget.ConstraintLayout>
+----------------------------
+showActivity.java
+---------------------
+package com.example.patient_tracker;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import android.annotation.SuppressLint;
+import android.content.Intent;
+import android.database.Cursor;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.ListView;
+import android.widget.SimpleCursorAdapter;
+import android.widget.Toast;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class showActivity extends AppCompatActivity {
+    dbo obj = new dbo(this,null,null,1);
+    Button insert;
+    private SimpleCursorAdapter adapter;
+    @SuppressLint("Range")
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_show);
+        ListView lv;
+        List<String> ls = new ArrayList<>();
+        List<String> fls = new ArrayList<>();
+        lv=findViewById(R.id.lv1);
+        insert=findViewById(R.id.insertpatient);
+        Cursor c;
+        c=obj.get_Data();
+        if(c != null && !c.isClosed())
+        {
+            c.moveToFirst();
+            do{
+                ls.add(c.getString(c.getColumnIndex("pname")).toString());
+                fls.add(c.getString(c.getColumnIndex("pdisease")).toString());
+            }while (c.moveToNext());
+
+            ArrayAdapter<String> adp=new ArrayAdapter<>(this, R.layout.support_simple_spinner_dropdown_item, ls);
+            lv.setAdapter(adp);
+        }
+        else
+        {
+            Toast.makeText(getApplicationContext(),"No Data", Toast.LENGTH_LONG).show();
+        }
+        lv.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int position, long l) {
+                Intent intent = new Intent(showActivity.this,UpdateActivity.class);
+                intent.putExtra("Data",ls.get(position));
+                intent.putExtra("Data1",fls.get(position));
+                startActivity(intent);
+            }
+        });
+        insert.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+//                obj.add_patient();
+                Toast.makeText(getApplicationContext(),"Data Inserted", Toast.LENGTH_LONG).show();
+
+                Intent i = new Intent(getApplicationContext(),InsertActivity.class);
+                startActivity(i);
+            }
+        });
+    }
+}
+-------------------------------------------------------
+activity_insert.xml
+------------------------
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".InsertActivity">
+
+    <TextView
+        android:id="@+id/textView2"
+        android:layout_width="417dp"
+        android:layout_height="55dp"
+        android:layout_marginStart="5dp"
+        android:layout_marginTop="16dp"
+        android:background="#5F62F3 "
+        android:gravity="center"
+        android:text="Voter Registration"
+        android:textColor="#ECECEC"
+        android:textSize="34sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <EditText
+        android:id="@+id/name"
+        android:layout_width="317dp"
+        android:layout_height="53dp"
+        android:layout_marginStart="48dp"
+        android:layout_marginTop="20dp"
+        android:ems="10"
+        android:hint="Enter Name"
+        android:inputType="textPersonName"
+        android:textSize="20sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/textView2" />
+
+    <EditText
+        android:id="@+id/email"
+        android:layout_width="313dp"
+        android:layout_height="55dp"
+        android:layout_marginStart="48dp"
+        android:layout_marginTop="4dp"
+        android:ems="10"
+        android:hint="Enter Email"
+        android:inputType="textEmailAddress"
+        android:textSize="20sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/name" />
+
+    <EditText
+        android:id="@+id/doa"
+        android:layout_width="307dp"
+        android:layout_height="51dp"
+        android:layout_marginStart="48dp"
+        android:layout_marginTop="8dp"
+        android:ems="10"
+
+        android:inputType="textPersonName"
+        android:textSize="20sp"
+        android:hint="Select Date Of arrival"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/pass" />
+
+    <EditText
+        android:id="@+id/pass"
+        android:layout_width="311dp"
+        android:layout_height="55dp"
+        android:layout_marginStart="48dp"
+        android:layout_marginTop="4dp"
+        android:ems="10"
+        android:hint="Enter Password"
+        android:inputType="textPassword"
+        android:textSize="20sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/email" />
+
+    <Button
+        android:id="@+id/submitres"
+        android:layout_width="208dp"
+        android:layout_height="43dp"
+        android:layout_marginStart="100dp"
+        android:background="#5F62F3"
+        android:gravity="center"
+        android:text="Register"
+        android:textSize="20sp"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:layout_editor_absoluteY="549dp"
+        app:layout_constraintTop_toBottomOf="@+id/disease"/>
+
+    <EditText
+        android:id="@+id/meditation"
+        android:layout_width="307dp"
+        android:layout_height="41dp"
+        android:layout_marginStart="52dp"
+        android:ems="10"
+
+        android:hint="meditation tye"
+        android:inputType="textPersonName"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/doa" />
+
+    <EditText
+        android:id="@+id/cost"
+        android:layout_width="307dp"
+        android:layout_height="53dp"
+        android:layout_marginStart="48dp"
+        android:layout_marginTop="12dp"
+        android:ems="10"
+        android:hint="cost"
+        android:inputType="textPersonName"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/meditation" />
+
+    <EditText
+        android:id="@+id/disease"
+        android:layout_width="305dp"
+        android:layout_height="43dp"
+        android:layout_marginStart="48dp"
+        android:layout_marginTop="20dp"
+        android:ems="10"
+        android:hint="disease"
+        android:inputType="textPersonName"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/cost" />
+</androidx.constraintlayout.widget.ConstraintLayout>
+------------------
+InsertActivity.java
+----------------------
+package com.example.patient_tracker;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import android.app.DatePickerDialog;
+import android.content.Intent;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.DatePicker;
+import android.widget.EditText;
+import android.widget.Spinner;
+import android.widget.Toast;
+
+import java.util.Calendar;
+
+public class InsertActivity extends AppCompatActivity {
+    Button submitres;
+    EditText name,email,pass,doa,cost,meditation,disease;
+//    Spinner txtcity;
+    public String text;
+    int mDate,mMonth,mYear;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_insert2);
+        submitres=findViewById(R.id.submitres);
+        name = findViewById(R.id.name);
+        email = findViewById(R.id.email);
+        pass = findViewById(R.id.pass);
+        doa = findViewById(R.id.doa);
+        cost=findViewById(R.id.cost);
+        disease=findViewById(R.id.disease);
+        meditation=findViewById(R.id.meditation);
+//        txtcity = findViewById(R.id.spinnerCity);
+
+        dbo obj = new dbo(getApplicationContext(),null,null,1);
+        doa.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                final Calendar cal = Calendar.getInstance();
+                mDate = cal.get(Calendar.DATE);
+                mMonth = cal.get(Calendar.MONTH);
+                mYear = cal.get(Calendar.YEAR);
+                DatePickerDialog datePickerDialog = new DatePickerDialog(InsertActivity.this, android.R.style.Theme_DeviceDefault_Light_Dialog, new DatePickerDialog.OnDateSetListener() {
+                    @Override
+                    public void onDateSet(DatePicker datePicker, int year, int month, int date) {
+                        doa.setText(date+"/"+month+"/"+year);
+                    }
+                },mYear,mMonth,mDate);
+                datePickerDialog.getDatePicker().setMaxDate(System.currentTimeMillis()-1000);
+                datePickerDialog.show();
+            }
+        });
+      submitres.setOnClickListener(new View.OnClickListener() {
+          @Override
+          public void onClick(View view) {
+              obj.add_patient(email.getText().toString(),pass.getText().toString(),name.getText().toString(),disease.getText().toString(),meditation.getText().toString(),doa.getText().toString(),cost.getText().toString());
+              Toast.makeText(getApplicationContext(),"Data Inserted", Toast.LENGTH_LONG).show();
+//              textv.getText().clear();
+//              textfname.getText().clear();
+              startActivity(new Intent(InsertActivity.this,MainActivity.class));
+
+          }
+      });
+    }
+}
+------------------------------------------------------------
+activity_update.xml
+-------------------------
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".UpdateActivity">
+    <EditText
+        android:id="@+id/name"
+        android:layout_width="317dp"
+        android:layout_height="53dp"
+        android:layout_marginStart="48dp"
+        android:layout_marginTop="48dp"
+        android:ems="10"
+        android:inputType="textPersonName"
+        android:textSize="20sp"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:ignore="MissingConstraints" />
+
+    <EditText
+        android:id="@+id/email"
+        android:layout_width="313dp"
+        android:layout_height="55dp"
+        android:layout_marginStart="48dp"
+        android:layout_marginTop="4dp"
+        android:ems="10"
+        android:inputType="textEmailAddress"
+        android:textSize="20sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/name" />
+
+    <EditText
+        android:id="@+id/doa"
+        android:layout_width="307dp"
+        android:layout_height="51dp"
+        android:layout_marginStart="48dp"
+        android:layout_marginTop="8dp"
+        android:ems="10"
+
+        android:inputType="textPersonName"
+        android:textSize="20sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/pass" />
+
+    <EditText
+        android:id="@+id/pass"
+        android:layout_width="311dp"
+        android:layout_height="55dp"
+        android:layout_marginStart="48dp"
+        android:layout_marginTop="4dp"
+        android:ems="10"
+        android:inputType="textPassword"
+        android:textSize="20sp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/email" />
+
+    <Button
+        android:id="@+id/update"
+        android:layout_width="208dp"
+        android:layout_height="43dp"
+        android:layout_marginStart="100dp"
+        android:background="#5F62F3"
+        android:gravity="center"
+        android:text="update"
+        android:textSize="20sp"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:layout_editor_absoluteY="549dp"
+        app:layout_constraintTop_toBottomOf="@+id/disease"/>
+
+    <EditText
+        android:id="@+id/meditation"
+        android:layout_width="307dp"
+        android:layout_height="41dp"
+        android:layout_marginStart="52dp"
+        android:ems="10"
+
+        android:inputType="textPersonName"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/doa" />
+
+    <EditText
+        android:id="@+id/cost"
+        android:layout_width="307dp"
+        android:layout_height="53dp"
+        android:layout_marginStart="48dp"
+        android:layout_marginTop="12dp"
+        android:ems="10"
+        android:inputType="textPersonName"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/meditation" />
+
+    <EditText
+        android:id="@+id/disease"
+        android:layout_width="305dp"
+        android:layout_height="43dp"
+        android:layout_marginStart="48dp"
+        android:layout_marginTop="20dp"
+        android:ems="10"
+        android:inputType="textPersonName"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/cost" />
+
+    <Button
+        android:id="@+id/delete"
+        android:layout_width="207dp"
+        android:layout_height="54dp"
+        android:layout_marginStart="100dp"
+        android:layout_marginTop="20dp"
+        android:text="delete"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/update"
+        tools:ignore="MissingConstraints" />
+</androidx.constraintlayout.widget.ConstraintLayout>
+-------------------
+UpdateActivity.java
+-------------------------
+package com.example.patient_tracker;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import android.content.Intent;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.Toast;
+
+public class UpdateActivity extends AppCompatActivity {
+    dbo obj = new dbo(this,null,null,1);
+
+    EditText name,email,pass,doa,cost,meditation,disease;
+
+    public String text;
+    Button update,delete;
+    String oldName;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_update);
+        update=findViewById(R.id.update);
+        delete=findViewById(R.id.delete);
+        name = findViewById(R.id.name);
+        email = findViewById(R.id.email);
+        pass = findViewById(R.id.pass);
+        doa = findViewById(R.id.doa);
+        cost=findViewById(R.id.cost);
+        disease=findViewById(R.id.disease);
+        meditation=findViewById(R.id.meditation);
+
+        name.setText(getIntent().getExtras().getSerializable("Data").toString());
+        disease.setText(getIntent().getExtras().getSerializable("Data1").toString());
+update.setOnClickListener(new View.OnClickListener() {
+    @Override
+    public void onClick(View view) {
+        obj.up_rec(getIntent().getExtras().getSerializable("Data").toString(),name.getText().toString(),disease.getText().toString());
+        Toast.makeText(getApplicationContext(),"Record Updated", Toast.LENGTH_LONG).show();
+        startActivity(new Intent(UpdateActivity.this,showActivity.class));
+
+    }
+});
+delete.setOnClickListener(new View.OnClickListener() {
+    @Override
+    public void onClick(View view) {
+        obj.del_rec(getIntent().getExtras().getSerializable("Data").toString());
+        Toast.makeText(getApplicationContext(),"Record Deleted", Toast.LENGTH_LONG).show();
+        startActivity(new Intent(UpdateActivity.this,showActivity.class));
+
+    }
+});
+    }
+}
+------------------------------------------------------------------------
+==================================================Simple crud with search=======================================
+dbo.java
+-----------------------
+package com.example.crud_priya;
+
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+
+import androidx.annotation.Nullable;
+
+public class dbo extends SQLiteOpenHelper {
+    public dbo(@Nullable Context context, @Nullable String name, @Nullable SQLiteDatabase.CursorFactory factory, int version) {
+        super(context, "name1", factory, 1);
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        db.execSQL("create table emptb(eid integer primary key autoincrement, ename text,fname text)");
+
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int i, int i1) {
+        onCreate(db);
+    }
+    public void add_Data(String name,String fname)
+    {
+        SQLiteDatabase db = this.getWritableDatabase(); //open db
+        ContentValues cv = new ContentValues(); //class for insert
+//        String fs1name="ythgrfd";
+//        String fsname="trfds";
+
+        cv.put("ename",name);
+        cv.put("fname",fname);
+        db.insert("emptb",null,cv);
+        db.close();
+    }
+
+    public Cursor get_Data()
+    {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor res = db.rawQuery("select * from emptb",null);
+        return res;
+    }
+
+    public void up_rec(String oldName,String name,String fname)
+    {
+
+        SQLiteDatabase db=this.getWritableDatabase();
+        ContentValues cv=new ContentValues();
+        cv.put("ename",name);
+        cv.put("fname",fname);
+        db.update("emptb", cv, "ename = ?", new String[]{oldName});
+        db.close();
+    }
+
+    public void del_rec(String oldName)
+    {
+        SQLiteDatabase db=this.getWritableDatabase();
+        db.delete("emptb", "ename = ?", new String[]{oldName});
+        db.close();
+    }
+    public Cursor populateListview(String s) {
+        SQLiteDatabase db=this.getWritableDatabase();
+        Cursor c1 = db.rawQuery("select * from emptb where ename = ?",new String[]{s} );
+        return c1;
+    }
+
+}
+---------------------------------------------
+activity_main.xml
+--------------------
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <EditText
+        android:id="@+id/tb1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="100dp"
+        android:layout_marginTop="61dp"
+        android:layout_marginEnd="101dp"
+        android:layout_marginBottom="36dp"
+        android:ems="10"
+        android:inputType="textPersonName"
+        android:minHeight="48dp"
+        android:text="Name"
+        app:layout_constraintBottom_toTopOf="@+id/b1"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/b1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="158dp"
+        android:layout_marginEnd="159dp"
+        android:layout_marginBottom="4dp"
+        android:text="Save"
+        app:layout_constraintBottom_toTopOf="@+id/b2"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/b2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="158dp"
+        android:layout_marginEnd="159dp"
+        android:layout_marginBottom="280dp"
+        android:text="Show All"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="1.0"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <EditText
+        android:id="@+id/fnametext"
+        android:layout_width="239dp"
+        android:layout_height="54dp"
+        android:layout_marginTop="34dp"
+        android:layout_marginEnd="85dp"
+        android:ems="10"
+        android:inputType="textPersonName"
+        android:text="FName"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tb1" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+----------------
+MainActivity
+---------------
+package com.example.crud_priya;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import android.content.Intent;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.Toast;
+
+public class MainActivity extends AppCompatActivity {
+    dbo obj = new dbo(this,null,null,1);
+    EditText textv,textfname ;
+    Button btn1;
+    Button btn2;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        textv = findViewById(R.id.tb1);
+        textfname = findViewById(R.id.fnametext);
+        btn1 = findViewById(R.id.b1);
+        btn2 = findViewById(R.id.b2);
+        textv.getText().clear();
+        textfname.getText().clear();
+
+        btn1.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                obj.add_Data(textv.getText().toString(),textfname.getText().toString());
+                Toast.makeText(getApplicationContext(),"Data Inserted", Toast.LENGTH_LONG).show();
+                textv.getText().clear();
+                textfname.getText().clear();
+            }
+        });
+        btn2.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                startActivity(new Intent(MainActivity.this,showAllActivity.class));
+
+            }
+        });
+    }
+}
+-----------------------
+show_all.xml
+-----------------------
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".showAllActivity">
+
+
+    <EditText
+        android:id="@+id/EditText1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="40dp"
+        android:ems="10"
+        android:inputType="textPersonName"
+        android:text="Name"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <Button
+        android:id="@+id/search"
+        android:layout_width="135dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="40dp"
+        android:text="Button"
+        app:layout_constraintStart_toEndOf="@+id/EditText1"
+        tools:layout_editor_absoluteY="0dp" />
+
+    <ListView
+        android:id="@+id/lv1"
+        android:layout_width="412dp"
+        android:layout_height="780dp"
+        android:layout_marginTop="45dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/EditText1"
+        tools:ignore="MissingConstraints" />
+</androidx.constraintlayout.widget.ConstraintLayout>
+-------------------
+showAllActivity
+---------------------
+package com.example.crud_priya;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import android.annotation.SuppressLint;
+import android.content.Intent;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ListView;
+import android.widget.Toast;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class showAllActivity extends AppCompatActivity {
+    dbo obj = new dbo(this,null,null,1);
+    private ArrayList<String> arraylist=new ArrayList<String>();
+    private ArrayAdapter<String> adapter;
+    Button search;
+    EditText EditText1;
+    ListView lv;
+    @SuppressLint("Range")
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_show_all);
+        EditText1=findViewById(R.id.EditText1);
+        search=findViewById(R.id.search);
+        ListView lv;
+        List<String> ls = new ArrayList<>();
+        List<String> fls = new ArrayList<>();
+        lv=findViewById(R.id.lv1);
+
+//        Cursor c;
+//        c=obj.get_Data();
+//        if(c != null && !c.isClosed())
+//        {
+//            c.moveToFirst();
+//            do{
+//                ls.add(c.getString(c.getColumnIndex("ename")).toString());
+//                fls.add(c.getString(c.getColumnIndex("fname")).toString());
+//            }while (c.moveToNext());
+//            ArrayAdapter<String> adp=new ArrayAdapter<>(this, R.layout.support_simple_spinner_dropdown_item, ls);
+//            lv.setAdapter(adp);
+//        }
+//        else
+//        {
+//            Toast.makeText(getApplicationContext(),"No Data", Toast.LENGTH_LONG).show();
+//        }
+        search.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Cursor c1;
+                c1 = obj.populateListview(EditText1.getText().toString());
+                if (c1 != null && !c1.isClosed()) {
+                    c1.moveToFirst();
+                    do {
+                        ls.add(c1.getString(c1.getColumnIndex("ename")).toString());
+                        fls.add(c1.getString(c1.getColumnIndex("fname")).toString());
+                    } while (c1.moveToNext());
+                    ArrayAdapter<String> adp = new ArrayAdapter<>(showAllActivity.this, R.layout.support_simple_spinner_dropdown_item, ls);
+                    lv.setAdapter(adp);
+                } else {
+                    Toast.makeText(getApplicationContext(), "No Data", Toast.LENGTH_LONG).show();
+                }
+            }
+        });
+//       EditText1.addTextChangedListener(new TextWatcher() {
+//           @Override
+//           public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+//
+//           }
+//
+//           @Override
+//           public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+//
+//           }
+//
+//           @Override
+//           public void afterTextChanged(Editable editable) {
+//
+//           }
+//       });
+
+
+
+
+
+//        List<String> ls = new ArrayList<>();
+//        List<String> fls = new ArrayList<>();
+//        lv=findViewById(R.id.lv1);
+//
+//        EditText1=findViewById(R.id.editText1);
+//        Cursor c;
+//        c=obj.get_Data();
+//        if(c != null && !c.isClosed())
+//        {
+//            c.moveToFirst();
+//            do{
+//                ls.add(c.getString(c.getColumnIndex("ename")).toString());
+//                fls.add(c.getString(c.getColumnIndex("fname")).toString());
+//                String ename = c.getString(c.getColumnIndex("ename"));
+//                String fname = c.getString(c.getColumnIndex("fname"));
+//
+//                arraylist.add("Name :" + ename + "\n" + "Age :" + fname + "\n");
+//            }while (c.moveToNext());
+//
+////            ArrayAdapter<String> adp=new ArrayAdapter<>(this, R.layout.support_simple_spinner_dropdown_item, ls);
+////            lv.setAdapter(adp);
+//            ArrayAdapter<String> adp=new ArrayAdapter<String>(showAllActivity.this, R.layout.support_simple_spinner_dropdown_item,arraylist);
+//                   lv.setAdapter(adp);
+//        }
+//        else
+//        {
+//            Toast.makeText(getApplicationContext(),"No Data", Toast.LENGTH_LONG).show();
+//        }
+//        EditText1.addTextChangedListener(new TextWatcher() {
+//           @Override
+//           public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+//
+//           }
+//
+//           @Override
+//           public void onTextChanged(CharSequence s, int i, int i1, int i2) {
+//
+//                   try {
+//                       Cursor c=obj.populateListview((String) s);
+//                       if (c != null) {
+//                           if (c.moveToFirst()) {
+//                               do {
+//                             ls.add(c.getString(c.getColumnIndex("ename")).toString());
+////                             fls.add(c.getString(c.getColumnIndex("fname")).toString());
+//                                   String ename = c.getString(c.getColumnIndex("ename"));
+//                                   String fname = c.getString(c.getColumnIndex("fname"));
+//
+//                                   arraylist.add("Name :" + ename + "\n" + "Age :" + fname + "\n");
+//
+//                               } while (c.moveToNext());
+//                           }
+//
+//                       }
+//
+//                   } catch (Exception e) {
+//                       e.printStackTrace();
+//                   }
+//             ArrayAdapter<String> adp=new ArrayAdapter<String>(showAllActivity.this, R.layout.support_simple_spinner_dropdown_item,arraylist);
+//
+////               adapter = new ArrayAdapter<String>(this, R.layout.list_item, R.id.product_name,);
+//               lv.setAdapter(adp);
+//
+//
+//
+//
+////               Cursor c;
+////               c=obj.populateListview(s.toString());
+////               if(c != null && !c.isClosed())
+////               {
+////                   c.moveToFirst();
+////                   do{
+////                       ls.add(c.getString(c.getColumnIndex("ename")).toString());
+////                       fls.add(c.getString(c.getColumnIndex("fname")).toString());
+////                       String ename = c.getString(c.getColumnIndex("ename"));
+////                       String fname = c.getString(c.getColumnIndex("fname"));
+////                       arraylist.add("Name :" + ename + " " + "Age :" + fname + "\n");
+////                   }while (c.moveToNext());
+////                   ArrayAdapter<String> adp=new ArrayAdapter<String>(showAllActivity.this, R.layout.support_simple_spinner_dropdown_item,arraylist);
+////                   lv.setAdapter(adp);
+////               }
+////               else
+////               {
+////                   Toast.makeText(getApplicationContext(),"No Data", Toast.LENGTH_LONG).show();
+////               }
+//
+//           }
+//
+//
+//
+//           @Override
+//           public void afterTextChanged(Editable editable) {
+//
+//           }
+//       });
+//        Cursor c;
+//        c=obj.get_Data();
+//        if(c != null && !c.isClosed())
+//        {
+//            c.moveToFirst();
+//            do{
+//                ls.add(c.getString(c.getColumnIndex("ename")).toString());
+//                fls.add(c.getString(c.getColumnIndex("fname")).toString());
+//            }while (c.moveToNext());
+//            ArrayAdapter<String> adp=new ArrayAdapter<>(this, R.layout.support_simple_spinner_dropdown_item, ls);
+//            lv.setAdapter(adp);
+//        }
+//        else
+//        {
+//            Toast.makeText(getApplicationContext(),"No Data", Toast.LENGTH_LONG).show();
+//        }
+       lv.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+           @Override
+           public void onItemClick(AdapterView<?> adapterView, View view, int position, long l) {
+               Intent intent = new Intent(showAllActivity.this,UpdateActivity.class);
+               intent.putExtra("Data",ls.get(position));
+               intent.putExtra("Data1",fls.get(position));
+               startActivity(intent);
+           }
+       });
+    }
+}
+---------------------------
+update.xml
+-------------------------
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".UpdateActivity">
+    <EditText
+        android:id="@+id/t1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="100dp"
+        android:layout_marginTop="111dp"
+        android:layout_marginBottom="104dp"
+        android:ems="10"
+        android:inputType="textPersonName"
+        android:minHeight="48dp"
+        android:text="Name"
+        app:layout_constraintBottom_toTopOf="@+id/b3"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="1.0" />
+
+    <Button
+        android:id="@+id/b3"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="158dp"
+        android:layout_marginEnd="159dp"
+        android:layout_marginBottom="43dp"
+        android:text="Update"
+        app:layout_constraintBottom_toTopOf="@+id/b4"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/b4"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="161dp"
+        android:layout_marginEnd="156dp"
+        android:layout_marginBottom="181dp"
+        android:text="Delete"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <EditText
+        android:id="@+id/fname"
+        android:layout_width="223dp"
+        android:layout_height="62dp"
+        android:layout_marginTop="25dp"
+        android:layout_marginEnd="100dp"
+        android:ems="10"
+        android:inputType="textPersonName"
+        android:text="FName"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/t1" />
+</androidx.constraintlayout.widget.ConstraintLayout>
+---------------------
+updateActivity
+-------------------------
+package com.example.crud_priya;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import android.content.Intent;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.Toast;
+
+public class UpdateActivity extends AppCompatActivity {
+    dbo obj = new dbo(this,null,null,1);
+    EditText ename,fname;
+    Button btnUpdate,btnDelete;
+    String oldName;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_update);
+        ename = findViewById(R.id.t1);
+        fname = findViewById(R.id.fname);
+        btnUpdate = findViewById(R.id.b3);
+        btnDelete = findViewById(R.id.b4);
+
+        ename.setText(getIntent().getExtras().getSerializable("Data").toString());
+        fname.setText(getIntent().getExtras().getSerializable("Data1").toString());
+
+        btnUpdate.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                obj.up_rec(getIntent().getExtras().getSerializable("Data").toString(),ename.getText().toString(),fname.getText().toString());
+                Toast.makeText(getApplicationContext(),"Record Updated", Toast.LENGTH_LONG).show();
+                startActivity(new Intent(UpdateActivity.this,showAllActivity.class));
+
+            }
+        });
+        btnDelete.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                obj.del_rec(getIntent().getExtras().getSerializable("Data").toString());
+                Toast.makeText(getApplicationContext(),"Record Deleted", Toast.LENGTH_LONG).show();
+                startActivity(new Intent(UpdateActivity.this,showAllActivity.class));
+
+            }
+        });
+    }
+}
+=============================================BufferStringCrud=============================
+DBHelper.java
+------------------------
+package com.example.crud_s;
+
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+
+import androidx.annotation.Nullable;
+
+public class DBHelper extends SQLiteOpenHelper {
+    public DBHelper(Context context) {
+        super(context, "test.db", null, 1);
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase DB) {
+        DB.execSQL("create Table Userdetails(name TEXT primary key, contact TEXT, dob TEXT)");
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase DB, int i, int i1) {
+        DB.execSQL("drop Table if exists Userdetails");
+
+    }
+    public Boolean insertuserdata(String name, String contact, String dob)
+    {
+        SQLiteDatabase DB = this.getWritableDatabase();
+        ContentValues contentValues = new ContentValues();
+        contentValues.put("name", name);
+        contentValues.put("contact", contact);
+        contentValues.put("dob", dob);
+        long result=DB.insert("Userdetails", null, contentValues);
+        if(result==-1){
+            return false;
+        }else{
+            return true;
+        }
+    }
+    public Boolean updateuserdata(String name, String contact, String dob)
+    {
+        SQLiteDatabase DB = this.getWritableDatabase();
+        ContentValues contentValues = new ContentValues();
+        contentValues.put("contact", contact);
+        contentValues.put("dob", dob);
+        Cursor cursor = DB.rawQuery("Select * from Userdetails where name = ?", new String[]{name});
+        if (cursor.getCount() > 0) {
+            long result = DB.update("Userdetails", contentValues, "name=?", new String[]{name});
+            if (result == -1) {
+                return false;
+            } else {
+                return true;
+            }
+        } else {
+            return false;
+        }
+    }
+    public Boolean deletedata (String name)
+    {
+        SQLiteDatabase DB = this.getWritableDatabase();
+        Cursor cursor = DB.rawQuery("Select * from Userdetails where name = ?", new String[]{name});
+        if (cursor.getCount() > 0) {
+            long result = DB.delete("Userdetails", "name=?", new String[]{name});
+            if (result == -1) {
+                return false;
+            } else {
+                return true;
+            }
+        } else {
+            return false;
+        }
+    }
+
+    public Cursor getdata ()
+    {
+        SQLiteDatabase DB = this.getWritableDatabase();
+        Cursor cursor = DB.rawQuery("Select * from Userdetails", null);
+        return cursor;
+    }
+}
+-----------------------------------------
+activity_main.xml
+---------------------------
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="10dp"
+        tools:context=".MainActivity">
+        <TextView
+            android:id="@+id/texttitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Please enter the details below"
+            android:textSize="24dp"
+            android:layout_marginTop="20dp"/>
+        <EditText
+            android:id="@+id/name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Name"
+            android:textSize="24dp"
+            android:layout_below="@+id/texttitle"
+            android:inputType="textPersonName"/>
+        <EditText
+            android:id="@+id/contact"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Contact"
+            android:textSize="24dp"
+            android:layout_below="@+id/name"
+            android:inputType="number"/>
+        <EditText
+            android:id="@+id/dob"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Date of Birth"
+            android:textSize="24dp"
+            android:layout_below="@+id/contact"
+            android:inputType="number"/>
+        <Button
+            android:id="@+id/btnInsert"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="24dp"
+            android:text="Insert New Data"
+            android:layout_marginTop="30dp"
+            android:layout_below="@id/dob"/>
+        <Button
+            android:id="@+id/btnUpdate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="24dp"
+            android:text="Update Data"
+            android:layout_below="@id/btnInsert"/>
+        <Button
+            android:id="@+id/btnDelete"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="24dp"
+            android:text="Delete Existing Data"
+            android:layout_below="@id/btnUpdate"/>
+        <Button
+            android:id="@+id/btnView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="24dp"
+            android:text="View Data"
+            android:layout_below="@id/btnDelete"/>
+    </RelativeLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
+-----------------------------------------
+package com.example.crud_s;
+
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+
+import android.database.Cursor;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.Toast;
+
+public class MainActivity extends AppCompatActivity {
+    EditText name, contact, dob;
+    Button insert, update, delete, view;
+    DBHelper DB;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        name = findViewById(R.id.name);
+        contact = findViewById(R.id.contact);
+        dob = findViewById(R.id.dob);
+        insert = findViewById(R.id.btnInsert);
+        update = findViewById(R.id.btnUpdate);
+        delete = findViewById(R.id.btnDelete);
+        view = findViewById(R.id.btnView);
+        DB = new DBHelper(this);
+
+        insert.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                String nameTXT = name.getText().toString();
+                String contactTXT = contact.getText().toString();
+                String dobTXT = dob.getText().toString();
+
+                Boolean checkinsertdata = DB.insertuserdata(nameTXT, contactTXT, dobTXT);
+                if(checkinsertdata==true)
+                    Toast.makeText(MainActivity.this, "New Entry Inserted", Toast.LENGTH_SHORT).show();
+                else
+                    Toast.makeText(MainActivity.this, "New Entry Not Inserted", Toast.LENGTH_SHORT).show();
+            }
+        });
+        view.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Cursor res = DB.getdata();
+                if(res.getCount()==0){
+                    Toast.makeText(MainActivity.this, "No Entry Exists", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                StringBuffer buffer = new StringBuffer();
+                while(res.moveToNext()){
+                    buffer.append("Name :"+res.getString(0)+"\n");
+                    buffer.append("Contact :"+res.getString(1)+"\n");
+                    buffer.append("Date of Birth :"+res.getString(2)+"\n\n");
+                }
+
+                AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+                builder.setCancelable(true);
+                builder.setTitle("User Entries");
+                builder.setMessage(buffer.toString());
+                builder.show();
+            }
+        });
+        update.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                String nameTXT = name.getText().toString();
+                String contactTXT = contact.getText().toString();
+                String dobTXT = dob.getText().toString();
+
+                Boolean checkupdatedata = DB.updateuserdata(nameTXT, contactTXT, dobTXT);
+                if(checkupdatedata==true)
+                    Toast.makeText(MainActivity.this, "Entry Updated", Toast.LENGTH_SHORT).show();
+                else
+                    Toast.makeText(MainActivity.this, "New Entry Not Updated", Toast.LENGTH_SHORT).show();
+            }
+        });
+        delete.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                String nameTXT = name.getText().toString();
+                Boolean checkudeletedata = DB.deletedata(nameTXT);
+                if(checkudeletedata==true)
+                    Toast.makeText(MainActivity.this, "Entry Deleted", Toast.LENGTH_SHORT).show();
+                else
+                    Toast.makeText(MainActivity.this, "Entry Not Deleted", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+}
